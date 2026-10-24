@@ -42,7 +42,16 @@ jobs:
             https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
           echo "PICO_SDK_PATH=$RUNNER_TEMP/pico-sdk" >> "$GITHUB_ENV"
 
-      - name: Confirm Pico-PIO-USB came down with the submodules
+      - name: Fetch Pico-PIO-USB (TinyUSB's rp2040 host-mode dependency)
+        # TinyUSB marks this nested submodule optional in its own
+        # .gitmodules, so pico-sdk's top-level --recurse-submodules
+        # clone skips it — it needs an explicit `submodule update`
+        # from inside the tinyusb checkout, same as TinyUSB's own CI.
+        run: |
+          cd "$PICO_SDK_PATH/lib/tinyusb"
+          git submodule update --init --depth 1 hw/mcu/raspberry_pi/Pico-PIO-USB
+
+      - name: Confirm Pico-PIO-USB is present
         run: |
           test -d "$PICO_SDK_PATH/lib/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src" || \
             (echo "::error::Pico-PIO-USB submodule is missing — dual host/device build needs it." && exit 1)
