@@ -1,0 +1,89 @@
+name: Build C firmware (UF2)
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "firmware_c/**"
+      - ".github/workflows/build-firmware-c.yml"
+  pull_request:
+    paths:
+      - "firmware_c/**"
+      - ".github/workflows/build-firmware-c.yml"
+  workflow_dispatch: {}
+
+env:
+  # Bump this if you need a newer pico-sdk (e.g. for a chip/board it
+  # doesn't support yet). Keep it a tagged release, not a branch, so
+  # builds are reproducible.
+  PICO_SDK_TAG: "2.1.1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Install build tools (arm-none-eabi toolchain, cmake)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            build-essential \
+            git \
+            python3 \
+            gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi
+
+      - name: Check out pico-sdk ${{ env.PICO_SDK_TAG }} (with submodules)
+        run: |
+          git clone --branch "$PICO_SDK_TAG" --depth 1 --recurse-submodules --shallow-submodules \
+            https://github.com/raspberrypi/pico-sdk.git "$RUNNER_TEMP/pico-sdk"
+          echo "PICO_SDK_PATH=$RUNNER_TEMP/pico-sdk" >> "$GITHUB_ENV"
+
+      - name: Fetch Pico-PIO-USB (TinyUSB's rp2040 host-mode dependency)
+        # Pico-PIO-USB isn't a git submodule in TinyUSB (no .gitmodules
+        # entry for it) — TinyUSB's own tooling fetches it with a
+        # plain pinned git clone via tools/get_deps.py, keyed by MCU
+        # family. Run that same script instead of `git submodule`.
+        run: |
+          python3 "$PICO_SDK_PATH/lib/tinyusb/tools/get_deps.py" rp2040
+
+      - name: Confirm Pico-PIO-USB is present
+        run: |
+          test -d "$PICO_SDK_PATH/lib/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src" || \
+            (echo "::error::Pico-PIO-USB submodule is missing — dual host/device build needs it." && exit 1)
+
+      - name: Configure (CMake)
+        run: |
+          cmake -S firmware_c -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DFAMILY=rp2040 \
+            -DBOARD=raspberry_pi_pico2
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Locate the built UF2
+        id: find_uf2
+        run: |
+          uf2_path="$(find build -maxdepth 2 -name '*.uf2' -print -quit)"
+          if [ -z "$uf2_path" ]; then
+            echo "::error::No .uf2 found under build/ — build must have failed earlier."
+            exit 1
+          fi
+          echo "uf2_path=$uf2_path" >> "$GITHUB_OUTPUT"
+
+      - name: Upload UF2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prunk_keyboard_c-${{ github.sha }}
+          path: ${{ steps.find_uf2.outputs.uf2_path }}
+          if-no-files-found: error
+
+      - name: Attach UF2 to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.find_uf2.outputs.uf2_path }}
