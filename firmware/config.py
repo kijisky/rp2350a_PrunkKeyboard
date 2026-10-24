@@ -20,10 +20,13 @@ A typical macro for "turn a typo into another word" — first several
 the end of the already-typed trigger), then the replacement tokens.
 """
 
-# Default probability for "joke" macros, in case you want a specific
-# macro to be random rather than 100% (see PRANK_PROB below and
-# use_default_prob in MACROS). 0.4 = 40% of cases.
-DEFAULT_PROB = 0.4
+# Probability that a macro fires once its trigger is typed.
+# 1.0 = always (100%), 0.4 = 40% of cases.
+DEFAULT_PROB = 1.0
+
+# Per-trigger probability overrides, e.g. MACRO_PROB = {"привет": 0.4}.
+# Triggers not listed here use DEFAULT_PROB.
+MACRO_PROB = {}
 
 # --- Pranks for friends/colleagues --------------------------------
 # Always fire (100%) once the trigger has been typed in full.

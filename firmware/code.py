@@ -21,6 +21,7 @@ the "Ethics and limits of use" section of README.md before using this
 on a device that you do not personally own.
 """
 
+import random
 import time
 import usb.core
 import usb_hid
@@ -36,10 +37,11 @@ buf = bytearray(8)
 # Compile the config once at startup — a typo in config.py will fail
 # right away at load time, not in the middle of the device's work.
 MACROS_C = [
-    (norm_trigger(trig), [key_of(tok) for tok in seq])
+    (norm_trigger(trig), [key_of(tok) for tok in seq],
+     config.MACRO_PROB.get(trig, config.DEFAULT_PROB))
     for trig, seq in config.MACROS.items()
 ]
-MAXLEN = max(len(trig) for trig, _ in MACROS_C) if MACROS_C else 0
+MAXLEN = max(len(trig) for trig, _, _ in MACROS_C) if MACROS_C else 0
 FILTER_C = {key_of(tok)[1] for tok in config.FILTER}
 
 
@@ -125,8 +127,8 @@ while True:
         typed.append(ch)
         if len(typed) > MAXLEN:
             typed.pop(0)
-        for trig, seq in MACROS_C:
-            if tuple(typed[-len(trig):]) == trig:
+        for trig, seq, prob in MACROS_C:
+            if tuple(typed[-len(trig):]) == trig and random.random() < prob:
                 macro = seq
                 break
 
