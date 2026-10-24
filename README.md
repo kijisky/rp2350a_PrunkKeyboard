@@ -7,8 +7,24 @@ USB-клавиатурный MITM-адаптер на базе **RP2350A**: ус
 например, стереть уже введённый текст несколькими `backspace` и
 напечатать вместо него что-то другое).
 
-Идея и общая архитектура вдохновлены проектом
-[daifukusensei/rp2350a-keyboard-interceptor](https://github.com/daifukusensei/rp2350a-keyboard-interceptor).
+Идея и общая архитектура вдохновлены проектами
+[daifukusensei/rp2350a-keyboard-interceptor](https://github.com/daifukusensei/rp2350a-keyboard-interceptor)
+и [SethRobinson/PrankKeyboard](https://github.com/SethRobinson/PrankKeyboard).
+
+## Две версии прошивки
+
+- [`firmware/`](firmware/) — на **CircuitPython**: просто копируется
+  на диск `CIRCUITPY`, не нужно ничего компилировать. Инструкция ниже
+  в этом файле.
+- [`firmware_c/`](firmware_c/) — на чистом **C** (Pico SDK + TinyUSB),
+  компилируется прямо в `.uf2`; собирается автоматически в GitHub
+  Actions ([`.github/workflows/build-firmware-c.yml`](.github/workflows/build-firmware-c.yml)),
+  готовый `.uf2` можно забрать из Artifacts без локальной сборки.
+  Инструкция — в [`firmware_c/README.md`](firmware_c/README.md).
+
+Обе версии реализуют один и тот же механизм «триггер → замена» и
+один и тот же раздел «Этика и границы использования» ниже касается
+обеих одинаково.
 
 ## Для чего это устройство
 
