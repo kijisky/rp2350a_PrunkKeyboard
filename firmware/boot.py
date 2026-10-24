@@ -1,21 +1,22 @@
 """
-boot.py — выполняется один раз при старте платы, до code.py.
+boot.py — runs once at board start, before code.py.
 
-Задача: сконфигурировать USB HID-дескриптор устройства, которое
-Pico видит компьютер (host-ПК), — только клавиатура, без лишних
-интерфейсов (CDC-консоль можно оставить для отладки через serial,
-но HID должен быть ровно один boot-keyboard, чтобы ОС сразу
-распознавала устройство как обычную клавиатуру).
+Task: configure the USB HID descriptor of the device that the host PC
+sees (the Pico) — keyboard only, with no extra interfaces (the CDC
+console can be kept for serial debugging, but HID must be exactly one
+boot keyboard so the OS recognizes the device as a regular keyboard
+right away).
 
-boot.py не имеет доступа к USB host API (usb.core) — тот доступен
-только в code.py, когда основной USB-стек уже поднят.
+boot.py has no access to the USB host API (usb.core) — that is only
+available in code.py, once the main USB stack is up.
 """
 
 import usb_hid
 
-# Стандартный HID report descriptor для клавиатуры (boot keyboard,
-# 8-байтовый отчёт: modifier, reserved, 6 keycodes) — это именно то,
-# что ожидает code.py при вызове usb_hid.devices и kbd_out.send_report().
+# Standard HID report descriptor for a keyboard (boot keyboard,
+# 8-byte report: modifier, reserved, 6 keycodes) — this is exactly
+# what code.py expects when it calls usb_hid.devices and
+# kbd_out.send_report().
 KEYBOARD_REPORT_DESCRIPTOR = bytes((
     0x05, 0x01,        # Usage Page (Generic Desktop)
     0x09, 0x06,        # Usage (Keyboard)
@@ -60,5 +61,5 @@ keyboard = usb_hid.Device(
     out_report_lengths=(0,),
 )
 
-# Отдаём компьютеру ровно одно HID-устройство — клавиатуру.
+# Expose exactly one HID device to the computer — the keyboard.
 usb_hid.enable((keyboard,))
