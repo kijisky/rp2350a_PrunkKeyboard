@@ -1,73 +1,71 @@
 """
-config.py — всё, что имеет смысл редактировать под себя, вынесено
-сюда отдельно от основной логики (code.py). После правки этого файла
-достаточно просто пересохранить его на плату — code.py трогать не
-нужно.
+config.py — everything you would want to customize is kept here,
+separate from the core logic (code.py). After editing this file, just
+save it to the board — code.py doesn't need to be touched.
 
-Триггер и замену в MACROS можно писать как кириллицей, так и
-латиницей — code.py сам приводит всё к физической клавише по
-раскладке ЙЦУКЕН, так что устройство срабатывает независимо от того,
-какая раскладка выбрана на самом компьютере в момент печати.
+Triggers and replacements in MACROS can be written in Cyrillic or in
+Latin — code.py maps everything to physical keys using the JCUKEN
+layout, so the device fires regardless of which layout is selected on
+the computer at the moment of typing.
 
-Формат значения MACROS — кортеж токенов:
-  - один символ        -> печатается как есть (модификатор Shift
-                           подбирается автоматически под нужный
-                           регистр/символ);
-  - строка длиннее      -> имя клавиши: "backspace", "enter", "tab",
-                           "left", "f5", "delete" и т.п. (см. словарь
-                           KEY в code.py).
+Format of a MACROS value — a tuple of tokens:
+  - a single character  -> typed as is (Shift is chosen automatically
+                           for the required case/symbol);
+  - a longer string     -> a key name: "backspace", "enter", "tab",
+                           "left", "f5", "delete", etc. (see the KEY
+                           dictionary in keymap.py).
 
-Типичный макрос для "превратить опечатку в другое слово" — сначала
-несколько "backspace" (столько, сколько букв нужно стереть с конца
-уже введённого триггера), затем токены замены.
+A typical macro for "turn a typo into another word" — first several
+"backspace" presses (as many as the number of letters to erase from
+the end of the already-typed trigger), then the replacement tokens.
 """
 
-# Вероятность срабатывания "шутливых" макросов по умолчанию, если вы
-# захотите сделать конкретный макрос случайным, а не 100%-ным (см.
-# PRANK_PROB ниже и use_default_prob в MACROS). 0.4 = 40% случаев.
+# Default probability for "joke" macros, in case you want a specific
+# macro to be random rather than 100% (see PRANK_PROB below and
+# use_default_prob in MACROS). 0.4 = 40% of cases.
 DEFAULT_PROB = 0.4
 
-# --- Пранки для друзей/коллег -------------------------------------
-# Срабатывают всегда (100%), когда триггер набран целиком.
-# Пример: напечатал "привет" -> компьютер показывает "приветики".
+# --- Pranks for friends/colleagues --------------------------------
+# Always fire (100%) once the trigger has been typed in full.
+# Example: type "привет" -> the computer shows "приветики".
 PRANK_MACROS = {
     "привет":  tuple("ики"),
     "документ": tuple("ик"),
 }
 
-# --- Исправление типичных опечаток (бытовая польза macros) --------
-# Тоже общий механизм: триггер — опечатка, замена — правильное слово.
+# --- Fixing common typos (everyday usefulness of macros) ----------
+# Same general mechanism: the trigger is a typo, the replacement is the
+# correct word.
 TYPO_MACROS = {
     "ошибка":  ("backspace",) * 2 + tuple("очка"),
     "hallo":   ("backspace",) * 2 + tuple("ol"),
     "ipconfig": ("backspace",) * 2 + tuple("gi"),
 }
 
-# --- Демонстрация атаки при физическом доступе ---------------------
-# Специально агрессивный пример для демо по безопасности: набор
-# невинного слова стирает уже введённое и подставляет совсем другой
-# текст — показывает, что устройство, вставленное между клавиатурой
-# и ПК, может переписывать ввод пользователя незаметно для него.
-# Используйте только на устройствах, где у вас есть разрешение
-# демонстрировать эту атаку (см. README, раздел "Этика и границы
-# использования").
+# --- Demonstration of an attack with physical access --------------
+# A deliberately aggressive example for a security demo: typing an
+# innocent word erases what was already typed and substitutes
+# completely different text — it shows that a device inserted between
+# the keyboard and the PC can silently rewrite the user's input.
+# Use only on devices where you have permission to demonstrate this
+# attack (see the README, section "Ethics and limits of use").
 DEMO_ATTACK_MACROS = {
     "пиздец": ("backspace",) * 6 + tuple("нехорошо"),
 }
 
-# Итоговый словарь, который читает code.py. Три группы выше собраны
-# сюда просто для наглядности — физически это один механизм
-# триггер -> замена, никакой код в code.py менять не нужно, чтобы
-# включить/выключить одну из групп (закомментируйте нужную строку).
+# The final dictionary that code.py reads. The three groups above are
+# combined here just for clarity — physically it is one trigger ->
+# replacement mechanism, and code.py doesn't need to change to enable
+# or disable one of the groups (comment out the corresponding line).
 MACROS = {}
 MACROS.update(PRANK_MACROS)
 MACROS.update(TYPO_MACROS)
 MACROS.update(DEMO_ATTACK_MACROS)
 
-# Коды клавиш (как они приходят от физической клавиатуры), которые
-# устройство должно полностью скрывать от компьютера — компьютер их
-# не увидит вообще, как будто они не были нажаты. Ключи — токены в
-# том же формате, что и в MACROS (один символ или имя клавиши).
-# Пример: FILTER = {"printscreen"} — компьютер не узнает о попытках
-# сделать скриншот.
+# Key codes (as they arrive from the physical keyboard) that the device
+# must completely hide from the computer — the computer won't see them
+# at all, as if they were never pressed. The entries are tokens in the
+# same format as in MACROS (a single character or a key name).
+# Example: FILTER = {"printscreen"} — the computer won't learn about
+# attempts to take a screenshot.
 FILTER = set()

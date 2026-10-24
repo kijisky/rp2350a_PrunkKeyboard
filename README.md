@@ -1,107 +1,106 @@
 # rp2350a_PrunkKeyboard
 
-USB-клавиатурный MITM-адаптер на базе **RP2350A**: устройство
-подключается *между* физической клавиатурой и компьютером,
-прозрачно пропускает через себя все нажатия, а при появлении
-заданной последовательности символов — запускает макрос (может,
-например, стереть уже введённый текст несколькими `backspace` и
-напечатать вместо него что-то другое).
+A USB keyboard MITM adapter based on the **RP2350A**. The device sits
+*between* a physical keyboard and a computer, transparently passes
+through every keypress, and when a specified character sequence
+appears, it runs a macro (for example, it can erase the text just
+typed with a few `backspace` presses and type something else in its
+place).
 
-Идея и общая архитектура вдохновлены проектом
+The idea and general architecture are inspired by the project
 [daifukusensei/rp2350a-keyboard-interceptor](https://github.com/daifukusensei/rp2350a-keyboard-interceptor).
 
-## Для чего это устройство
+## What this device is for
 
-- **Пранк над друзьями/коллегами** — например, слово «привет»
-  компьютер показывает как «приветики». Безобидно и обратимо: само
-  устройство ничего не ломает, оно просто подменяет то, что видит
-  компьютер.
-- **Демонстрация атаки при физическом доступе** — наглядно
-  показывает человеку, почему нельзя давать посторонним физический
-  доступ к своей клавиатуре/порту: устройство размером с переходник
-  может незаметно переписывать набираемый текст или команды.
-- **Личные макросы для себя** — автоисправление типичных опечаток
-  (`hallo` → `hol`, `ipconfig` → `ipcgi` в примере из коробки —
-  замените на свои), подстановка часто повторяемого текста и т.п.
+- **Pranking friends/colleagues** — for example, when the word "привет"
+  is typed, the computer shows "приветики" instead. It is harmless and
+  reversible: the device doesn't break anything itself, it just
+  substitutes what the computer sees.
+- **Demonstrating an attack with physical access** — it visually shows
+  a person why they should never give strangers physical access to
+  their keyboard or port: a device the size of an adapter can quietly
+  rewrite typed text or commands.
+- **Personal macros** — auto-correcting common typos (`hallo` → `hol`,
+  `ipconfig` → `ipcgi` in the out-of-the-box example — replace these
+  with your own), inserting frequently repeated text, and so on.
 
-Все три сценария — один и тот же механизм «триггер → замена»,
-настраиваются в одном файле (`firmware/config.py`), см. раздел
-[«Настройка макросов»](#настройка-макросов).
+All three scenarios use the same "trigger → replacement" mechanism and
+are configured in a single file (`firmware/config.py`); see the
+[“Configuring macros”](#configuring-macros) section.
 
-## Этика и границы использования
+## Ethics and limits of use
 
-Это устройство физически переписывает то, что пользователь печатает,
-без какого-либо визуального индикатора на экране. Это ровно то же
-самое свойство, которое делает подобные устройства небезопасными,
-если их подключить без согласия владельца компьютера.
+This device physically rewrites what the user types, with no visual
+indication on the screen. That is exactly the property that makes such
+devices dangerous when connected without the computer owner's consent.
 
-- Используйте его только на **своей собственной клавиатуре/ПК**,
-  или на устройстве друга/коллеги **с их явного согласия** — в т.ч.
-  ради пранка: предупредите, что это шутка, после демонстрации.
-- Для демонстрации уязвимости безопасности — делайте это открыто,
-  как обучающий пример («смотри, что может сделать чужой человек,
-  если получит физический доступ к твоему порту»), а не скрытно.
-- Не используйте на чужих рабочих местах, в чужих организациях или
-  на любом устройстве, доступ к которому вы получили без разрешения
-  владельца, — это может быть прямым нарушением законодательства
-  (неправомерный доступ к компьютерной информации, несанкционированная
-  модификация данных) независимо от ваших намерений.
-- Макрос `пиздец` в `config.py` (`DEMO_ATTACK_MACROS`) — пример
-  именно для демонстрации атаки (стирает набранное и подставляет
-  другой текст по неочевидному триггеру). Удалите его или замените,
-  если устройство предназначено только для бытовых макросов/пранков.
+- Use it only on **your own keyboard/PC**, or on a friend's or
+  colleague's device **with their explicit consent** — including for
+  pranks: tell them it was a joke after the demonstration.
+- If you are demonstrating a security vulnerability, do it openly, as
+  a teaching example ("look what a stranger could do if they got
+  physical access to your port"), not covertly.
+- Do not use it at other people's workstations, in other people's
+  organizations, or on any device you accessed without the owner's
+  permission — this can be a direct violation of the law (unauthorized
+  access to computer information, unauthorized modification of data),
+  regardless of your intentions.
+- The `пиздец` macro in `config.py` (`DEMO_ATTACK_MACROS`) is an
+  example specifically for demonstrating an attack (it erases what was
+  typed and substitutes different text on a non-obvious trigger).
+  Delete or replace it if the device is meant only for everyday macros
+  and pranks.
 
-## Как это работает
+## How it works
 
-1. Физическая клавиатура подключается в USB-A разъём платы, который
-   работает в режиме **USB host**.
-2. Плата читает «сырые» boot-keyboard HID-отчёты от клавиатуры через
-   `usb.core` (встроенная в CircuitPython 9.x поддержка USB host на
-   платах с двумя USB-портами).
-3. Та же плата подключается к компьютеру через свой родной USB-порт
-   и представляется компьютеру обычной USB HID-клавиатурой
-   (`usb_hid`).
-4. Каждый входящий отчёт пробрасывается на компьютер как есть и
-   параллельно разбирается по кодам клавиш в текст (раскладко-
-   независимо: совпадение ищется по физическому коду клавиши, а не
-   по символу, так что триггер срабатывает и в русской, и в
-   английской раскладке на самом ПК).
-5. Если последние несколько набранных символов совпали с одним из
-   триггеров в `config.py` — устройство проигрывает заданную
-   последовательность клавиш (может включать `backspace`), как будто
-   это напечатал сам пользователь.
+1. The physical keyboard is plugged into the board's USB-A connector,
+   which operates in **USB host** mode.
+2. The board reads raw boot-keyboard HID reports from the keyboard via
+   `usb.core` (USB host support built into CircuitPython 9.x on boards
+   with two USB ports).
+3. The same board is connected to the computer through its native USB
+   port and presents itself to the computer as an ordinary USB HID
+   keyboard (`usb_hid`).
+4. Each incoming report is forwarded to the computer as is, and at the
+   same time its keycodes are decoded into text. The matching is
+   layout-independent: it is done by physical key code rather than by
+   character, so a trigger fires both in the Russian and in the English
+   layout selected on the PC.
+5. If the last few typed characters match one of the triggers in
+   `config.py`, the device plays back the specified key sequence (which
+   may include `backspace`), as if the user had typed it themselves.
 
-## Что нужно для сборки
+## What you need to build it
 
-### Железо
+### Hardware
 
-- Плата на **RP2350A** с поддержкой **двух USB-ролей одновременно**:
-  один порт в режиме device (к ПК), другой — в режиме host (к
-  клавиатуре). Конкретная топология зависит от платы — где-то это
-  два физических USB-A разъёма, где-то один native USB-OTG + второй
-  порт через PIO-USB.
-- Переходник/кабель USB-A на используемый разъём клавиатуры, если
-  клавиатура не USB-A.
-- Сама клавиатура, через которую будет печатать пользователь.
+- An **RP2350A** board with support for **two USB roles at the same
+  time**: one port in device mode (to the PC), the other in host mode
+  (to the keyboard). The exact topology depends on the board — some
+  have two physical USB-A connectors, others have one native USB-OTG
+  plus a second port via PIO-USB.
+- A USB-A adapter/cable for the keyboard's connector, if your keyboard
+  is not USB-A.
+- The keyboard you will type on.
 
-### Прошивка на плате
+### Board firmware
 
-- [CircuitPython](https://circuitpython.org/) **9.x или новее** —
-  для конкретной платы версия должна поддерживать `usb.core` (USB
-  host). Проверьте страницу вашей платы на circuitpython.org — не
-  все сборки CircuitPython включают host-режим.
+- [CircuitPython](https://circuitpython.org/) **9.x or newer** — for
+  your specific board, the version must support `usb.core` (USB host).
+  Check your board's page on circuitpython.org — not every
+  CircuitPython build includes host mode.
 
-## Установка
+## Installation
 
-1. **Прошейте CircuitPython.**
-   Зажмите кнопку `BOOTSEL` на плате, подключите её к компьютеру по
-   USB — она примонтируется как диск `RPI-RP2`/`RP2350`. Скопируйте
-   на этот диск `.uf2`-файл CircuitPython для вашей платы. Плата
-   перезагрузится и примонтируется уже как диск `CIRCUITPY`.
+1. **Flash CircuitPython.**
+   Hold the `BOOTSEL` button on the board and connect it to the
+   computer via USB — it will mount as a drive named `RPI-RP2`/`RP2350`.
+   Copy the `.uf2` CircuitPython file for your board onto this drive.
+   The board will reboot and mount as a `CIRCUITPY` drive.
 
-2. **Скопируйте файлы прошивки этого репозитория.**
-   Из каталога [`firmware/`](firmware/) скопируйте на диск
-   `CIRCUITPY` четыре файла **в его корень**, рядом друг с другом:
+2. **Copy this repository's firmware files.**
+   From the [`firmware/`](firmware/) directory, copy the four files to
+   the root of the `CIRCUITPY` drive, next to each other:
    - `boot.py`
    - `code.py`
    - `config.py`
@@ -109,30 +108,29 @@ USB-клавиатурный MITM-адаптер на базе **RP2350A**: ус
 
    ```bash
    cp firmware/boot.py firmware/code.py firmware/config.py firmware/keymap.py /Volumes/CIRCUITPY/
-   # путь к точке монтирования зависит от ОС: на Linux обычно
-   # /media/<user>/CIRCUITPY/, на Windows — буква диска.
+   # The mount point depends on the OS: on Linux it is usually
+   # /media/<user>/CIRCUITPY/, on Windows it is a drive letter.
    ```
 
-3. **Перезагрузите плату** (достаточно переподключить её по USB) —
-   `boot.py` поднимет HID-дескриптор клавиатуры, после чего `code.py`
-   запустится и будет ждать подключения физической клавиатуры к
-   host-порту.
+3. **Reboot the board** (reconnecting it via USB is enough) —
+   `boot.py` sets up the keyboard HID descriptor, after which `code.py`
+   starts and waits for the physical keyboard to be connected to the
+   host port.
 
-4. **Подключите физическую клавиатуру** в host-порт платы, а саму
-   плату — в компьютер через её device-порт. В serial-консоли платы
-   (например, через `screen`/putty, или вкладку Serial в Mu/Thonny)
-   должно появиться `Keyboard connected`.
+4. **Connect the physical keyboard** to the board's host port, and the
+   board itself to the computer via its device port. The board's serial
+   console (for example via `screen`/PuTTY, or the Serial tab in Mu or
+   Thonny) should show `Keyboard connected`.
 
-5. **Проверьте пранк/макрос.** Откройте любой текстовый редактор на
-   компьютере и наберите один из триггеров из `config.py` (по
-   умолчанию — например `привет` или `hallo`) — компьютер должен
-   увидеть результат подстановки, а не то, что было набрано на
-   физической клавиатуре.
+5. **Test the prank/macro.** Open any text editor on the computer and
+   type one of the triggers from `config.py` (by default, for example,
+   `привет` or `hallo`). The computer should show the substituted
+   result, not what was typed on the physical keyboard.
 
-### Настройка макросов
+### Configuring macros
 
-Всё, что стоит менять под себя, находится в `firmware/config.py` —
-`code.py`/`keymap.py` трогать не нужно:
+Everything you may want to change is in `firmware/config.py` —
+`code.py`/`keymap.py` don't need to be touched:
 
 ```python
 MACROS = {
@@ -141,26 +139,26 @@ MACROS = {
 }
 ```
 
-- Ключ словаря — триггер (можно кириллицей или латиницей, подбирается
-  автоматически по физической клавише).
-- Значение — кортеж токенов: один символ печатается как есть, более
-  длинная строка — это имя клавиши (`"backspace"`, `"enter"`,
-  `"tab"`, `"left"`, `"f5"` и т.п.).
-- Чтобы устройство полностью скрывало какую-то клавишу от
-  компьютера (не пранк, а фильтр) — добавьте её токен в `FILTER`.
+- A dictionary key is the trigger (it can be written in Cyrillic or
+  Latin; the matching is done automatically by physical key).
+- A value is a tuple of tokens: a single character is typed as is; a
+  longer string is a key name (`"backspace"`, `"enter"`, `"tab"`,
+  `"left"`, `"f5"`, etc.).
+- To make the device completely hide some key from the computer (a
+  filter rather than a prank), add its token to `FILTER`.
 
-После изменения `config.py` просто пересохраните файл на диск
-`CIRCUITPY` — плата перезапустит `code.py` автоматически. Опечатка в
-триггере/замене будет видна сразу: устройство напечатает в serial-
-консоли ошибку и не запустится, вместо того чтобы незаметно
-сломаться во время использования.
+After changing `config.py`, just save the file to the `CIRCUITPY` drive
+again — the board restarts `code.py` automatically. A typo in a trigger
+or replacement will be visible right away: the device prints an error
+to the serial console and does not start, instead of failing silently
+during use.
 
-## Структура репозитория
+## Repository structure
 
 ```
 firmware/
-  boot.py    — настройка USB HID-дескриптора (выполняется один раз при старте)
-  code.py    — основной цикл: чтение клавиатуры, перехват, подмена
-  keymap.py  — таблицы кодов клавиш и раскладки ЙЦУКЕН
-  config.py  — список макросов/триггеров и фильтров — редактируйте здесь
+  boot.py    — USB HID descriptor setup (runs once at startup)
+  code.py    — main loop: reading the keyboard, interception, substitution
+  keymap.py  — keycode tables and the JCUKEN (Russian) layout
+  config.py  — list of macros/triggers and filters — edit here
 ```

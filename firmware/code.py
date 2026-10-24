@@ -1,24 +1,24 @@
 """
-code.py — основной цикл устройства.
+code.py — the main device loop.
 
-Архитектура: плата на RP2350A подключена одновременно:
-  - к компьютеру через родной USB-разъём платы как USB HID-клавиатура
-    (`usb_hid`, настроено в boot.py) — то, что компьютер видит;
-  - к физической клавиатуре через второй USB-A разъём платы, который
-    работает в режиме USB HOST (`usb.core`, нативная поддержка RP2350
-    в CircuitPython 9.x на платах с двумя USB-портами/USB-OTG) —
-    оттуда устройство читает "сырые" boot-keyboard отчёты.
+Architecture: the RP2350A board is connected to two things at once:
+  - the computer, via the board's native USB port, as a USB HID
+    keyboard (`usb_hid`, configured in boot.py) — this is what the
+    computer sees;
+  - the physical keyboard, via the board's second USB-A port, which
+    works in USB HOST mode (`usb.core`, native RP2350 support in
+    CircuitPython 9.x on boards with two USB ports / USB-OTG) — the
+    device reads raw boot-keyboard reports from it.
 
-Иными словами: физическая клавиатура подключена В плату, плата
-подключена В компьютер. Всё, что печатает пользователь, проходит
-через этот цикл, который либо пропускает отчёт как есть, либо
-подменяет его срабатыванием макроса из config.MACROS.
+In other words: the physical keyboard is plugged INTO the board, and
+the board is plugged INTO the computer. Everything the user types goes
+through this loop, which either passes the report through unchanged or
+replaces it with a macro from config.MACROS.
 
-Это MITM ("человек посередине") на уровне HID-протокола: устройство
-полностью контролирует, что компьютер видит из того, что было
-набрано. См. README.md, раздел "Этика и границы использования",
-прежде чем использовать это на устройстве, которое не принадлежит
-вам лично.
+This is a MITM ("man in the middle") at the HID protocol level: the
+device fully controls what the computer sees of what was typed. See
+the "Ethics and limits of use" section of README.md before using this
+on a device that you do not personally own.
 """
 
 import time
@@ -33,8 +33,8 @@ kbd_out = next(d for d in usb_hid.devices if d.usage_page == 0x01 and d.usage ==
 EP_IN = 0x81
 buf = bytearray(8)
 
-# Компилируем конфиг один раз при старте — опечатка в config.py
-# упадёт сразу при загрузке, а не посреди работы устройства.
+# Compile the config once at startup — a typo in config.py will fail
+# right away at load time, not in the middle of the device's work.
 MACROS_C = [
     (norm_trigger(trig), [key_of(tok) for tok in seq])
     for trig, seq in config.MACROS.items()
@@ -44,16 +44,16 @@ FILTER_C = {key_of(tok)[1] for tok in config.FILTER}
 
 
 def play(seq):
-    """Воспроизвести компьютеру последовательность клавиш макроса."""
-    kbd_out.send_report(bytes(8))  # отпустить всё, в т.ч. зажатый Shift
+    """Play the macro's key sequence to the computer."""
+    kbd_out.send_report(bytes(8))  # release everything, incl. a held Shift
     for mod, kc in seq:
         kbd_out.send_report(bytes([mod, 0, kc, 0, 0, 0, 0, 0]))
         kbd_out.send_report(bytes(8))
 
 
 def build(src, muted):
-    """Копия входного отчёта с обнулёнными отфильтрованными/
-    приглушёнными кодами клавиш (компьютер их не увидит)."""
+    """Copy of the input report with filtered/muted keycodes zeroed out
+    (the computer won't see them)."""
     out = bytearray(src)
     for i in range(2, 8):
         if out[i] in FILTER_C or out[i] in muted:
@@ -62,9 +62,9 @@ def build(src, muted):
 
 
 def connect():
-    """Дождаться подключения физической клавиатуры к host-порту и
-    перехватить управление у встроенного HID-драйвера CircuitPython
-    (который иначе сам пытается её сконфигурировать)."""
+    """Wait for the physical keyboard to be connected to the host port,
+    and take control from CircuitPython's built-in HID driver (which
+    otherwise tries to configure it on its own)."""
     while True:
         for dev in usb.core.find(find_all=True):
             try:
@@ -82,11 +82,11 @@ def connect():
         time.sleep(0.5)
 
 
-# === Главный цикл =================================================
+# === Main loop ====================================================
 dev = connect()
-prev = []        # коды, зажатые в прошлом отчёте
-typed = []       # последние набранные латинские символы (до MAXLEN)
-muted = set()    # клавиши, "отпущенные" макросом, пока их не отпустят руками
+prev = []        # keycodes held down in the previous report
+typed = []       # last typed Latin characters (up to MAXLEN)
+muted = set()    # keys "released" by a macro, until the user releases them physically
 
 while True:
     try:
@@ -106,20 +106,20 @@ while True:
     new = [k for k in keys if k not in prev]
     prev = keys
 
-    # -- распознавание последовательности набранных символов --
+    # -- recognize the sequence of typed characters --
     macro = None
     for kc in new:
         if kc in FILTER_C:
             continue
-        if mod & MOD_OTHER:  # Ctrl/Alt/Win -> это не текст
+        if mod & MOD_OTHER:  # Ctrl/Alt/Win -> this is not text
             typed.clear()
             continue
         if kc == BACKSPACE:
             if typed:
                 typed.pop()
             continue
-        ch = SCAN_BASE.get(kc)  # код клавиши -> базовый латинский символ
-        if ch is None:  # стрелки, Esc, F-клавиши и т.п. сбрасывают буфер
+        ch = SCAN_BASE.get(kc)  # keycode -> base Latin character
+        if ch is None:  # arrows, Esc, F-keys etc. reset the buffer
             typed.clear()
             continue
         typed.append(ch)
@@ -130,7 +130,7 @@ while True:
                 macro = seq
                 break
 
-    # -- отправка: сначала сам нажатый отчёт, потом макрос поверх --
+    # -- sending: first the pressed report itself, then the macro on top --
     kbd_out.send_report(build(buf, muted))
 
     if macro:
