@@ -43,13 +43,12 @@ jobs:
           echo "PICO_SDK_PATH=$RUNNER_TEMP/pico-sdk" >> "$GITHUB_ENV"
 
       - name: Fetch Pico-PIO-USB (TinyUSB's rp2040 host-mode dependency)
-        # TinyUSB marks this nested submodule optional in its own
-        # .gitmodules, so pico-sdk's top-level --recurse-submodules
-        # clone skips it — it needs an explicit `submodule update`
-        # from inside the tinyusb checkout, same as TinyUSB's own CI.
+        # Pico-PIO-USB isn't a git submodule in TinyUSB (no .gitmodules
+        # entry for it) — TinyUSB's own tooling fetches it with a
+        # plain pinned git clone via tools/get_deps.py, keyed by MCU
+        # family. Run that same script instead of `git submodule`.
         run: |
-          cd "$PICO_SDK_PATH/lib/tinyusb"
-          git submodule update --init --depth 1 hw/mcu/raspberry_pi/Pico-PIO-USB
+          python3 "$PICO_SDK_PATH/lib/tinyusb/tools/get_deps.py" rp2040
 
       - name: Confirm Pico-PIO-USB is present
         run: |
