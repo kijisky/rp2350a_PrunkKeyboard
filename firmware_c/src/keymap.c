@@ -116,8 +116,9 @@ int keymap_decode_utf8_char(const char *s, keystroke_t *out) {
         return ascii_to_key((unsigned char)cp, out) ? 1 : 0;
     }
 
-    // ё / Ё sit outside the main Cyrillic block (offset +0x50, not +0x20).
-    if (cp == 0x0451) { cp = 0x0451; }  // ё (lowercase) — fallthrough below
+    // ё / Ё sit outside the main Cyrillic block (offset +0x50, not +0x20),
+    // so they're handled as explicit cases below rather than by the
+    // uniform +0x20 lower<->upper offset that covers а-я/А-Я.
     bool shift = false;
     uint32_t lower_cp = cp;
     if (cp == 0x0401) { lower_cp = 0x0451; shift = true; }        // Ё -> ё

@@ -37,8 +37,11 @@ static void send_kbd_report(uint8_t modifier, const uint8_t keycode[6]) {
     // tud_hid_keyboard_report() just queues the report; TinyUSB can
     // reject it if the previous one hasn't gone out yet (full EP
     // buffer), so retry for a bit instead of silently dropping keys.
+    // TinyUSB's signature takes a non-const array (it doesn't modify
+    // it) — our own API keeps `const` for callers' benefit, so cast
+    // it away only at this one call site.
     for (int attempt = 0; attempt < 1000; attempt++) {
-        if (tud_hid_keyboard_report(0, modifier, keycode)) return;
+        if (tud_hid_keyboard_report(0, modifier, (uint8_t *)keycode)) return;
         tud_task();
     }
 }
