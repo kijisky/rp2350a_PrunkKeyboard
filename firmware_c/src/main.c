@@ -34,14 +34,19 @@ static size_t s_muted_count;
 // --- Sending reports to the PC ---------------------------------------
 
 static void send_kbd_report(uint8_t modifier, const uint8_t keycode[6]) {
+    // tud_hid_keyboard_report()'s keycode parameter is non-const in
+    // TinyUSB's API (it doesn't actually modify it); our own API
+    // keeps `const` for callers' benefit, so copy into a local
+    // mutable buffer here rather than casting the qualifier away
+    // (-Wcast-qual treats that cast as an error in this build).
+    uint8_t buf[6];
+    memcpy(buf, keycode, sizeof(buf));
+
     // tud_hid_keyboard_report() just queues the report; TinyUSB can
     // reject it if the previous one hasn't gone out yet (full EP
     // buffer), so retry for a bit instead of silently dropping keys.
-    // TinyUSB's signature takes a non-const array (it doesn't modify
-    // it) — our own API keeps `const` for callers' benefit, so cast
-    // it away only at this one call site.
     for (int attempt = 0; attempt < 1000; attempt++) {
-        if (tud_hid_keyboard_report(0, modifier, (uint8_t *)keycode)) return;
+        if (tud_hid_keyboard_report(0, modifier, buf)) return;
         tud_task();
     }
 }
