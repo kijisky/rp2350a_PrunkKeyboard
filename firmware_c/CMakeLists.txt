@@ -51,6 +51,17 @@ target_include_directories(prunk_keyboard_c PUBLIC
     ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
+# The stock raspberry_pi_pico2/raspberry_pi_pico board.h (meant for
+# single-role, device-only examples) doesn't define which RHPORT is
+# host vs device — TinyUSB's hw/bsp/rp2040/family.c needs these for
+# the dual-role board_init() path (it errors with "BOARD_TUH_RHPORT
+# undeclared" otherwise). RHPORT0 = native USB = device (see
+# tusb_config.h); RHPORT1 = PIO-USB = host.
+target_compile_definitions(prunk_keyboard_c PUBLIC
+    BOARD_TUD_RHPORT=0
+    BOARD_TUH_RHPORT=1
+)
+
 # GPIO number of the PIO-USB host port's D+ pin; D- must be the very
 # next GPIO (DP_PIN + 1), that's a Pico-PIO-USB requirement. Default
 # (0/1) matches the common PIO-USB convention used by e.g. the
