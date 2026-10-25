@@ -22,17 +22,21 @@ on a device that you do not personally own.
 """
 
 import random
+import microcontroller
 import time
 import usb.core
 import usb_hid
 
 import config
-from keymap import BACKSPACE, MOD_OTHER, SCAN_BASE, key_of, norm_trigger
+from keymap import BACKSPACE, MOD_ALT, MOD_CTRL, MOD_OTHER, SCAN_BASE, key_of, norm_trigger
 
 kbd_out = next(d for d in usb_hid.devices if d.usage_page == 0x01 and d.usage == 0x06)
 
 EP_IN = 0x81
 buf = bytearray(8)
+
+# "`" key, which is "ё" on the JCUKEN layout. Ctrl+Alt+ё switches the mode.
+TOGGLE_KEY = 0x35
 
 # Compile the config once at startup — a typo in config.py will fail
 # right away at load time, not in the middle of the device's work.
@@ -63,6 +67,19 @@ def build(src, muted):
     return out
 
 
+def debug_mode():
+    """True if the mode flag in nvm is set to debug mode."""
+    return microcontroller.nvm[0] == 1
+
+
+def toggle_mode():
+    """Switch between work and debug mode and restart the board.
+    boot.py reads the new mode from nvm on the next boot."""
+    microcontroller.nvm[0] = 0 if debug_mode() else 1
+    print("Switching to", "work" if debug_mode() else "debug", "mode")
+    microcontroller.reset()
+
+
 def connect():
     """Wait for the physical keyboard to be connected to the host port,
     and take control from CircuitPython's built-in HID driver (which
@@ -85,6 +102,7 @@ def connect():
 
 
 # === Main loop ====================================================
+print("Mode:", "debug" if debug_mode() else "work")
 dev = connect()
 prev = []        # keycodes held down in the previous report
 typed = []       # last typed Latin characters (up to MAXLEN)
@@ -111,6 +129,10 @@ while True:
     # -- recognize the sequence of typed characters --
     macro = None
     for kc in new:
+        # Mode switch: handled before filters, and never forwarded to the
+        # computer because the board restarts first.
+        if kc == TOGGLE_KEY and mod & MOD_CTRL and mod & MOD_ALT:
+            toggle_mode()
         if kc in FILTER_C:
             continue
         if mod & MOD_OTHER:  # Ctrl/Alt/Win -> this is not text

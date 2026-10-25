@@ -153,6 +153,21 @@ or replacement will be visible right away: the device prints an error
 to the serial console and does not start, instead of failing silently
 during use.
 
+## Work and debug modes
+
+- **Work mode** (the default, after flashing): `boot.py` exposes only
+  the keyboard HID device to the computer.
+- **Debug mode**: `boot.py` skips the custom HID setup and leaves
+  CircuitPython's default USB devices in place. Interception still runs
+  and prints its status to the serial console. The onboard RGB LED
+  lights red for one second at boot.
+
+To switch modes, press **Ctrl+Alt+ё** on the keyboard connected to the
+board (the key with `` ` `` on the English layout). The board saves the
+new mode in `microcontroller.nvm`, restarts, and the combo is not sent
+to the computer. The mode is kept across power cycles. Press the combo
+again to switch back.
+
 ## Repository structure
 
 ```

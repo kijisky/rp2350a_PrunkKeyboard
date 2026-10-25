@@ -77,6 +77,8 @@ for i in range(12):
 
 BACKSPACE = KEY["backspace"]
 MOD_SHIFT = 0x22   # LShift | RShift
+MOD_CTRL = 0x11    # LCtrl | RCtrl
+MOD_ALT = 0x44     # LAlt | RAlt
 MOD_OTHER = 0xDD   # Ctrl / Alt / GUI (both sides) — not part of the text
 
 
