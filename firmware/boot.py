@@ -9,8 +9,14 @@ right away).
 
 boot.py has no access to the USB host API (usb.core) — that is only
 available in code.py, once the main USB stack is up.
+
+Mode: work mode is the default and exposes only the keyboard HID
+device. Debug mode, selected by the Ctrl+Alt+ё combo in code.py, skips
+the custom HID setup and leaves CircuitPython's default USB devices.
+The mode is stored in microcontroller.nvm, so it survives reboots.
 """
 
+import microcontroller
 import usb_hid
 
 # Standard HID report descriptor for a keyboard (boot keyboard,
@@ -61,5 +67,12 @@ keyboard = usb_hid.Device(
     out_report_lengths=(0,),
 )
 
-# Expose exactly one HID device to the computer — the keyboard.
-usb_hid.enable((keyboard,))
+# nvm[0] == 1 means debug mode (see the module docstring).
+try:
+    DEBUG_MODE = microcontroller.nvm[0] == 1
+except Exception:
+    DEBUG_MODE = False
+
+# Work mode: expose exactly one HID device to the computer — the keyboard.
+if not DEBUG_MODE:
+    usb_hid.enable((keyboard,))
