@@ -159,7 +159,8 @@ during use.
   the keyboard HID device to the computer.
 - **Debug mode**: `boot.py` skips the custom HID setup and leaves
   CircuitPython's default USB devices in place. Interception still runs
-  and prints its status to the serial console.
+  and prints its status to the serial console. The onboard RGB LED
+  lights red for one second at boot.
 
 To switch modes, press **Ctrl+Alt+ё** on the keyboard connected to the
 board (the key with `` ` `` on the English layout). The board saves the
